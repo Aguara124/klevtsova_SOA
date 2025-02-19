@@ -1,0 +1,97 @@
+specification {
+    element person {
+        style {
+            shape person
+            color green
+        }
+    }
+    element softwareSystem
+    element container
+}
+
+model {
+  user = person "Пользователь" "Пользователь Social Media"
+
+  api = softwareSystem "API Gateway" "Принимает все запросы с UI"{
+    restapi = container "REST API" {
+      description 'перенаправляет запросы в другие сервисы'
+    }
+    python = container "Python" {
+      description 'Каждый сервис может быть реализован на своем ЯП'
+    }
+    docker = container "Docker" {
+      description 'Каждый сервис может быть завернут в docker образ'
+    }
+  }
+
+  users = softwareSystem "Users System" "Отвечает за регистрацию и аутентификацию пользователей" {
+    postgres = container "PostgreSQL" {
+      description 'БД для хранения информации по пользователям'
+      style{
+        shape cylinder
+      }
+    }
+    python = container "Python" {
+      description 'Каждый сервис может быть реализован на своем ЯП'
+    }
+    docker = container "Docker" {
+      description 'Каждый сервис может быть завернут в docker образ'
+    }
+  }
+
+  statistics = softwareSystem "Statistics Service" "Для подсчета лайков, просмотров, комментариев" {
+    statistics_api = container "Statistics API" {
+      description 'Сюда ходит API Gateway'
+    }
+    clickhouse = container "Clickhouse" {
+      description 'БД для хранения информации по статистикам'
+      style{
+        shape cylinder
+      }
+    }
+    python = container "Python" {
+      description 'Каждый сервис может быть реализован на своем ЯП'
+    }
+    docker = container "Docker" {
+      description 'Каждый сервис может быть завернут в docker образ'
+    }
+  }
+
+  posts = softwareSystem "Posts Service" "Сервис постов с комментариями" {
+    broker = container "Message broker" {
+      description 'События с просмотрами, лайками, комментариями отправляются через брокер сообщений в сервис статистики'
+    }
+    postgres = container "PostgreSQL" {
+      description 'БД для хранения информации по ппостам'
+      style{
+        shape cylinder
+      }
+    }
+    cassandra = container "Cassandra" {
+      description 'БД для хранения информации по постам'
+      style{
+        shape cylinder
+      }
+    }
+    python = container "Python" {
+      description 'Каждый сервис может быть реализован на своем ЯП'
+    }
+    docker = container "Docker" {
+      description 'Каждый сервис может быть завернут в docker образ'
+    }
+  }
+  user -> api.restapi "Послать запрос"
+  user -> users.postgres "Пройти аутенфикацию"
+  user -> statistics.clickhouse "Получить статистику"
+  user -> posts.cassandra "Информация о постах"
+
+  api.restapi -> users.postgres "Получить данные по сети"
+  posts.broker -> statistics.clickhouse "Передать данные о посте"
+  api.restapi -> statistics.statistics_api "Ходим за получением статистики"
+}
+
+views {
+   view index {
+        include *
+    }
+}
