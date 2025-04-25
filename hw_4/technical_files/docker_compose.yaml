@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: social_network_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Vettely418vzvvzv&
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # Kafka message broker
+  kafka:
+    image: confluentinc/cp-kafka:7.0.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # Kafka UI - веб-интерфейс для мониторинга и управления Kafka
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  # Kafka topic initialization
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.0.0
+    container_name: kafka-setup
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+        echo Waiting for Kafka to be ready...
+        cub kafka-ready -b kafka:9092 1 40
+        echo Creating Kafka topics...
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic new_user_was_registered
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic post_was_viewed
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic post_was_liked
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic post_was_commented
+        echo Kafka topics created.
+      "
+
+  # Book gRPC service
+  posts_service:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: posts_service
+    depends_on:
+      - postgres
+      - kafka-setup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Vettely417vzvvzv&
+      POSTGRES_DB: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "50051:50051"
+
+  # API Gateway
+  api:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    container_name: api_gateway
+    depends_on:
+      - posts_service
+    environment:
+      GRPC_SERVER_ADDRESS: posts_service:50051
+    ports:
+      - "9000:8000"
+
+volumes:
+  postgres_data: 
