@@ -1,0 +1,222 @@
+openapi: 3.0.0
+info:
+  title: User Management API
+  description: An API for user registration, authentication, token management, and user information updates.
+  version: 1.0.0
+paths:
+  /register:
+    post:
+      summary: Register a new user
+      description: Registers a new user with a login, password, and email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                password:
+                  type: string
+                email:
+                  type: string
+              required:
+                - login
+                - password
+                - email
+      responses:
+        '200':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "User was registered."
+        '400':
+          description: Login already exists
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Current login already exists."
+  
+  /authenticate:
+    post:
+      summary: Authenticate a user and generate a token
+      description: Authenticates a user based on login and password, returning an access token if successful.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                password:
+                  type: string
+              required:
+                - login
+                - password
+      responses:
+        '200':
+          description: Authentication successful, token generated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Success, token: <token>"
+        '401':
+          description: Invalid login or password
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "A user with these login and password was not found."
+  
+  /get_info:
+    get:
+      summary: Retrieve user info by token
+      description: Returns user details based on the provided token.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User information successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                  user_login:
+                    type: string
+                  user_email:
+                    type: string
+                  created:
+                    type: string
+                    format: date-time
+                  modified:
+                    type: string
+                    format: date-time
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "The token is expired. Create a new one using /get_new_token_login."
+
+  /update:
+    post:
+      summary: Update a user field
+      description: Updates user information fields like name, surname, email, or birth date.
+      parameters:
+        - name: field
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: value
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Field successfully updated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "The field was updated."
+        '400':
+          description: Invalid field
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Field is not found. You can update only: user_name, user_surname, user_email, and user_birth."
+        '401':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "The token is expired. Create a new one using /get_new_token_login."
+
+  /get_new_token_login:
+    get:
+      summary: Create a new token using login and password
+      description: Generates a new access token for a user if they provide the correct login and password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                password:
+                  type: string
+              required:
+                - login
+                - password
+      responses:
+        '200':
+          description: New token successfully generated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "New token: <new_token>"
+        '401':
+          description: Invalid login or password
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "A user with these login and password was not found."
+  
+  /get_new_token:
+    get:
+      summary: Create a new token if the current one is expired
+      description: Refreshes the token if the old one is expired.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required:
+                - token
+      responses:
+        '200':
+          description: New token successfully generated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "New token: <new_token>"
+        '401':
+          description: Token expired
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "The token is expired. Create a new one using /get_new_token_login."
